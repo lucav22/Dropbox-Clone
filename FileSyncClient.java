@@ -56,4 +56,14 @@ public class FileSyncClient {
             }
         }
     }
+
+    public void connect() throws IOException {
+        socket = new Socket(SERVER_HOST, SERVER_PORT);
+        System.out.println("Connected to server at " + SERVER_HOST + ":" + SERVER_PORT);
+        
+        output = new ObjectOutputStream(socket.getOutputStream());
+        input = new ObjectInputStream(socket.getInputStream());
+        
+        initialSync();
+    }
 }
