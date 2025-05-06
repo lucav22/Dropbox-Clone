@@ -187,4 +187,43 @@ public class FileSyncClient {
         } catch (InterruptedException e) {
         }
     }
+
+    private void handleCreateEvent(Path fullPath, String relativePath) {
+        try {
+            Thread.sleep(100);
+
+            System.out.println("File created: " + relativePath);
+
+            byte[] fileData = Files.readAllBytes(fullPath);
+            FileEvent event = new FileEvent(FileEvent.EventType.CREATE, relativePath, fileData);
+            sendEventToServer(event);
+            fileModificationTimes.put(relativePath, fullPath.toFile().lastModified());
+        } catch (Exception e) {
+            System.err.println("Error handling create event: " + e.getMessage());
+        }
+    }
+    
+    private void handleModifyEvent(Path fullPath, String relativePath) {
+        try {
+            System.out.println("File modified: " + relativePath);
+
+            byte[] fileData = Files.readAllBytes(fullPath);
+            FileEvent event = new FileEvent(FileEvent.EventType.MODIFY, relativePath, fileData);
+            sendEventToServer(event);
+        } catch (Exception e) {
+            System.err.println("Error handling modify event: " + e.getMessage());
+        }
+    }
+    
+    private void handleDeleteEvent(String relativePath) {
+        try {
+            System.out.println("File deleted: " + relativePath);
+            
+            FileEvent event = new FileEvent(FileEvent.EventType.DELETE, relativePath, null);
+            sendEventToServer(event);
+            fileModificationTimes.remove(relativePath);
+        } catch (Exception e) {
+            System.err.println("Error handling delete event: " + e.getMessage());
+        }
+    }
 }
