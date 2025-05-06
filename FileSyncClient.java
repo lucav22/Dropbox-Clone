@@ -26,4 +26,34 @@ public class FileSyncClient {
         File dirToWatch = new File(DIRECTORY);
         scanDirectory(dirToWatch, "");
     }
+
+    private void scanDirectory(File rootDirectory, String rootRelativePath) {
+        Queue<File> directoryQueue = new LinkedList<>();
+        Queue<String> pathQueue = new LinkedList<>();
+
+        directoryQueue.add(rootDirectory);
+        pathQueue.add(rootRelativePath);
+    
+        while (!directoryQueue.isEmpty()) {
+            File currentDir = directoryQueue.poll();
+            String currentPath = pathQueue.poll();
+            File[] files = currentDir.listFiles();
+            
+            if (files == null) {
+                continue;
+            }
+            
+            for (File file : files) {
+                String path = currentPath.isEmpty() ? 
+                        file.getName() : currentPath + File.separator + file.getName();
+                
+                if (file.isDirectory()) {
+                    directoryQueue.add(file);
+                    pathQueue.add(path);
+                } else {
+                    fileModificationTimes.put(path, file.lastModified());
+                }
+            }
+        }
+    }
 }
