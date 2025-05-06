@@ -264,4 +264,17 @@ public class FileSyncClient {
             System.err.println("Error closing connection: " + e.getMessage());
         }
     }
+
+    public static void main(String[] args) {
+        FileSyncClient client = new FileSyncClient();
+        
+        try {
+            client.connect();
+            client.startWatching();
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
 }
