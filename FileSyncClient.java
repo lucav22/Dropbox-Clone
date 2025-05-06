@@ -226,4 +226,42 @@ public class FileSyncClient {
             System.err.println("Error handling delete event: " + e.getMessage());
         }
     }
+
+    private synchronized void sendEventToServer(FileEvent event) {
+        try {
+            output.writeObject(event);
+            output.flush();
+            
+            String ack = (String) input.readObject();
+            System.out.println("Server response: " + ack);
+        } catch (Exception e) {
+            System.err.println("Error sending event to server: " + e.getMessage());
+            tryReconnect();
+        }
+    }
+    
+    private void tryReconnect() {
+        System.out.println("Trying to reconnect to server...");
+        
+        try {
+            if (socket != null) {
+                socket.close();
+            }
+            
+            connect();
+            System.out.println("Reconnected to server");
+        } catch (IOException e) {
+            System.err.println("Failed to reconnect: " + e.getMessage());
+        }
+    }
+    
+    public void close() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing connection: " + e.getMessage());
+        }
+    }
 }
