@@ -89,4 +89,64 @@ public class FileSyncClient {
             System.err.println("Error during initial sync: " + e.getMessage());
         }
     }
+
+    public void startWatching() {
+        try {
+            WatchService watchService = FileSystems.getDefault().newWatchService();
+            
+            Path watchPath = Paths.get(WATCH_DIR);
+            registerAll(watchPath, watchService);
+            
+            System.out.println("Watching directory: " + watchPath.toAbsolutePath());
+            
+            Thread pollingThread = new Thread(this::pollForModifications);
+            pollingThread.setDaemon(true);
+            pollingThread.start();
+            
+            while (true) {
+                WatchKey key;
+                try {
+                    key = watchService.take();
+                } catch (InterruptedException e) {
+                    return;
+                }
+                
+                Path dir = (Path) key.watchable();
+                
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    WatchEvent.Kind<?> kind = event.kind();
+
+                    if (kind == OVERFLOW) {
+                        continue;
+                    }
+                    
+                    Path fileName = (Path) event.context();
+                    Path fullPath = dir.resolve(fileName);
+                    Path relativePath = Paths.get(WATCH_DIR).relativize(fullPath);
+                    String pathString = relativePath.toString().replace("\\", "/");
+                    
+                    if (Files.isDirectory(fullPath, LinkOption.NOFOLLOW_LINKS)) {
+                        if (kind == ENTRY_CREATE) {
+                            System.out.println("Directory created: " + pathString);
+                            registerAll(fullPath, watchService);
+                        }
+                        continue;
+                    }
+                    
+                    if (kind == ENTRY_CREATE) {
+                        handleCreateEvent(fullPath, pathString);
+                    } else if (kind == ENTRY_DELETE) {
+                        handleDeleteEvent(pathString);
+                    }
+                }
+                
+                boolean valid = key.reset();
+                if (!valid) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error watching directory: " + e.getMessage());
+        }
+    }
 }
