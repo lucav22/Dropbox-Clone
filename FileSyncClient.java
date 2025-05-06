@@ -3,6 +3,8 @@ import java.net.*;
 import java.nio.file.*;
 import java.util.*;
 import static java.nio.file.StandardWatchEventKinds.*;
+import java.util.Queue;
+import java.util.LinkedList;
 
 public class FileSyncClient {
     private static final String SERVER_HOST = "localhost";
@@ -148,5 +150,16 @@ public class FileSyncClient {
         } catch (IOException e) {
             System.err.println("Error watching directory: " + e.getMessage());
         }
+    }
+
+    private void registerAll(Path start, WatchService watchService) throws IOException {
+        // Register the directory and all its subdirectories
+        Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 }
