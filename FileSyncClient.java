@@ -21,4 +21,9 @@ public class FileSyncClient {
         
         initializeFileMap();
     }
+
+    private void initializeFileMap() {
+        File dirToWatch = new File(DIRECTORY);
+        scanDirectory(dirToWatch, "");
+    }
 }
