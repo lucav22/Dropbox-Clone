@@ -13,4 +13,12 @@ public class FileSyncClient {
     private ObjectInputStream input;
     private ObjectOutputStream output;
     
+    public FileSyncClient() {
+        File dirToWatch = new File(DIRECTORY);
+        if (!dirToWatch.exists()) {
+            dirToWatch.mkdir();
+        }
+        
+        initializeFileMap();
+    }
 }
