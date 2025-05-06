@@ -153,7 +153,6 @@ public class FileSyncClient {
     }
 
     private void registerAll(Path start, WatchService watchService) throws IOException {
-        // Register the directory and all its subdirectories
         Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -161,5 +160,31 @@ public class FileSyncClient {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    private void pollForModifications() {
+        try {
+            while (true) {
+                Thread.sleep(1000);
+                Map<String, Long> fileMapCopy = new HashMap<>(fileModificationTimes);
+                
+                for (Map.Entry<String, Long> entry : fileMapCopy.entrySet()) {
+                    String filePath = entry.getKey();
+                    long lastModifiedTime = entry.getValue();
+                    
+                    File file = new File(WATCH_DIR + File.separator + filePath);
+                    
+                    if (file.exists() && file.isFile()) {
+                        long currentModifiedTime = file.lastModified();
+                        
+                        if (currentModifiedTime > lastModifiedTime) {
+                            fileModificationTimes.put(filePath, currentModifiedTime);
+                            handleModifyEvent(file.toPath(), filePath);
+                        }
+                    }
+                }
+            }
+        } catch (InterruptedException e) {
+        }
     }
 }
