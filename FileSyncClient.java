@@ -66,4 +66,27 @@ public class FileSyncClient {
         
         initialSync();
     }
+
+    private void initialSync() {
+        try {
+            System.out.println("Performing initial synchronization...");
+            
+            for (String filePath : fileModificationTimes.keySet()) {
+                File file = new File(WATCH_DIR + File.separator + filePath);
+                
+                if (file.exists() && file.isFile()) {
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    FileEvent event = new FileEvent(FileEvent.EventType.CREATE, filePath, fileData);
+                    output.writeObject(event);
+                    output.flush();
+                    String ack = (String) input.readObject();
+                    System.out.println("Initial sync for " + filePath + ": " + ack);
+                }
+            }
+            
+            System.out.println("Initial synchronization completed");
+        } catch (Exception e) {
+            System.err.println("Error during initial sync: " + e.getMessage());
+        }
+    }
 }
