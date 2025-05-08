@@ -48,4 +48,28 @@ public class FileSyncClientGUI extends JFrame {
         initializeFileMap();
         setVisible(true);
     }
+
+    private void createGUI() {
+        JPanel mainPanel = new JPanel(new BorderLayout(5, 5));
+        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        
+        JPanel connectionPanel = createConnectionPanel();
+        mainPanel.add(connectionPanel, BorderLayout.NORTH);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setResizeWeight(0.7); // 70% to top component
+        
+        JPanel filePanel = createFilePanel();
+        splitPane.setTopComponent(filePanel);
+        JPanel logPanel = createLogPanel();
+        splitPane.setBottomComponent(logPanel);
+        
+        mainPanel.add(splitPane, BorderLayout.CENTER);
+        
+        statusLabel = new JLabel("Not connected");
+        statusLabel.setBorder(new CompoundBorder(
+                new EtchedBorder(), new EmptyBorder(5, 5, 5, 5)));
+        mainPanel.add(statusLabel, BorderLayout.SOUTH);
+        
+        setContentPane(mainPanel);
+    }
 }
