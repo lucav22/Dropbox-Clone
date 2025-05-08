@@ -367,4 +367,19 @@ public class FileSyncClientGUI extends JFrame {
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
     }
+
+    private void clearLog() {
+        activityLog.clear();
+        logArea.setText("");
+    }
+
+    public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        SwingUtilities.invokeLater(() -> new FileSyncClientGUI());
+    }
 }
