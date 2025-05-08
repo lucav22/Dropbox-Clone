@@ -136,7 +136,7 @@ public class FileSyncClientGUI extends JFrame {
                 new Object[]{"File Name", "Path", "Size", "Last Modified", "Status"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Make all cells non-editable
+                return false;
             }
         };
         
@@ -176,5 +176,16 @@ public class FileSyncClientGUI extends JFrame {
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
         return panel;
+    }
+
+    private void browseForDirectory() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        fileChooser.setDialogTitle("Select Watch Directory");
+        
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File selectedDir = fileChooser.getSelectedFile();
+            watchDirField.setText(selectedDir.getAbsolutePath());
+        }
     }
 }
