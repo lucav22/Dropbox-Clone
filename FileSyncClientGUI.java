@@ -356,4 +356,15 @@ public class FileSyncClientGUI extends JFrame {
             toggleConnection();
         }
     }
+
+    private void addLogEntry(String message) {
+        String timestamp = timeFormat.format(new Date());
+        String logEntry = "[" + timestamp + "] " + message;
+        
+        activityLog.add(logEntry);
+        SwingUtilities.invokeLater(() -> {
+            logArea.append(logEntry + "\n");
+            logArea.setCaretPosition(logArea.getDocument().getLength());
+        });
+    }
 }
