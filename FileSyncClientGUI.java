@@ -24,4 +24,14 @@ public class FileSyncClientGUI extends JFrame {
     private ObjectInputStream input;
     private boolean connected = false;
     private Thread watchThread;
+
+    private JTextField serverHostField;
+    private JTextField serverPortField;
+    private JTextField watchDirField;
+    private JButton connectButton;
+    private JButton browseButton;
+    private JTextArea logArea;
+    private JTable fileTable;
+    private DefaultTableModel fileTableModel;
+    private JLabel statusLabel;
 }
