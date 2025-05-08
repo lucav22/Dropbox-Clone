@@ -247,4 +247,14 @@ public class FileSyncClientGUI extends JFrame {
     
         startWatching();
     }
+
+    private void registerAll(Path start, WatchService watchService) throws IOException {
+        Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
 }
