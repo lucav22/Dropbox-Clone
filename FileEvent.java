@@ -4,18 +4,16 @@ public class FileEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public enum EventType {
-        CREATE,  // A new file is created
-        MODIFY,  // A file is modified
-        DELETE   // A file is deleted
+        CREATE, MODIFY, DELETE
     }
-    
-    private EventType eventType;
-    private String filePath;    
-    private byte[] fileData;    
 
-    public FileEvent(EventType eventType, String filePath, byte[] fileData) {
+    private final EventType eventType;
+    private final String relativePath;
+    private final byte[] fileData;
+
+    public FileEvent(EventType eventType, String relativePath, byte[] fileData) {
         this.eventType = eventType;
-        this.filePath = filePath;
+        this.relativePath = relativePath;
         this.fileData = fileData;
     }
 
@@ -23,11 +21,20 @@ public class FileEvent implements Serializable {
         return eventType;
     }
 
-    public String getFilePath() {
-        return filePath;
+    public String getRelativePath() {
+        return relativePath;
     }
 
     public byte[] getFileData() {
         return fileData;
+    }
+
+    @Override
+    public String toString() {
+        return "FileEvent{" +
+                "eventType=" + eventType +
+                ", relativePath='" + relativePath + "\'" +
+                ", fileSize=" + (fileData != null ? fileData.length + " bytes" : "N/A") +
+                '}';
     }
 }
