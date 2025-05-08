@@ -335,4 +335,25 @@ public class FileSyncClientGUI extends JFrame {
             SwingUtilities.invokeLater(this::tryReconnect);
         }
     }
+
+    private void tryReconnect() {
+        addLogEntry("Trying to reconnect to server...");
+        
+        disconnectFromServer();
+        connected = false;
+        connectButton.setText("Connect");
+        serverHostField.setEnabled(true);
+        serverPortField.setEnabled(true);
+        watchDirField.setEnabled(true);
+        browseButton.setEnabled(true);
+        statusLabel.setText("Connection lost. Please reconnect.");
+        
+        int option = JOptionPane.showConfirmDialog(this,
+                "Connection to server lost. Would you like to reconnect?",
+                "Connection Lost", JOptionPane.YES_NO_OPTION);
+        
+        if (option == JOptionPane.YES_OPTION) {
+            toggleConnection();
+        }
+    }
 }
