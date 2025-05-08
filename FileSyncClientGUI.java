@@ -323,4 +323,16 @@ public class FileSyncClientGUI extends JFrame {
             addLogEntry("Error handling delete event: " + e.getMessage());
         }
     }
+
+    private synchronized void sendEventToServer(FileEvent event) {
+        try {
+            output.writeObject(event);
+            output.flush();
+            String ack = (String) input.readObject();
+            addLogEntry("Server response: " + ack);
+        } catch (Exception e) {
+            addLogEntry("Error sending event to server: " + e.getMessage());
+            SwingUtilities.invokeLater(this::tryReconnect);
+        }
+    }
 }
