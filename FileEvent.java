@@ -12,4 +12,22 @@ public class FileEvent implements Serializable {
     private EventType eventType;
     private String filePath;    
     private byte[] fileData;    
+
+    public FileEvent(EventType eventType, String filePath, byte[] fileData) {
+        this.eventType = eventType;
+        this.filePath = filePath;
+        this.fileData = fileData;
+    }
+
+    public EventType getEventType() {
+        return eventType;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public byte[] getFileData() {
+        return fileData;
+    }
 }
