@@ -37,4 +37,15 @@ public class FileSyncClientGUI extends JFrame {
 
     private List<String> activityLog = new ArrayList<>();
     private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+
+    public FileSyncClientGUI() {
+        setTitle("File Sync Client");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        createGUI();
+        initializeFileMap();
+        setVisible(true);
+    }
 }
