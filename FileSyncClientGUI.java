@@ -127,4 +127,36 @@ public class FileSyncClientGUI extends JFrame {
         
         return panel;
     }
+
+    private JPanel createFilePanel() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createTitledBorder("Synchronized Files"));
+        
+        fileTableModel = new DefaultTableModel(
+                new Object[]{"File Name", "Path", "Size", "Last Modified", "Status"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Make all cells non-editable
+            }
+        };
+        
+        fileTable = new JTable(fileTableModel);
+        fileTable.setFillsViewportHeight(true);
+        fileTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        fileTable.getColumnModel().getColumn(0).setPreferredWidth(150); // File name
+        fileTable.getColumnModel().getColumn(1).setPreferredWidth(250); // Path
+        fileTable.getColumnModel().getColumn(2).setPreferredWidth(80);  // Size
+        fileTable.getColumnModel().getColumn(3).setPreferredWidth(150); // Last Modified
+        fileTable.getColumnModel().getColumn(4).setPreferredWidth(100); // Status
+        JScrollPane scrollPane = new JScrollPane(fileTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        JToolBar toolBar = new JToolBar();
+        toolBar.setFloatable(false);
+        JButton refreshButton = new JButton("Refresh File List");
+        refreshButton.addActionListener(e -> refreshFileList());
+        toolBar.add(refreshButton);
+        panel.add(toolBar, BorderLayout.NORTH);
+        
+        return panel;
+    }
 }
