@@ -19,5 +19,9 @@ public class FileSyncClientGUI extends JFrame {
     private String watchDir = "client_files";
     private Map<String, Long> fileModificationTimes = new HashMap<>();
 
-    
+    private Socket socket;
+    private ObjectOutputStream output;
+    private ObjectInputStream input;
+    private boolean connected = false;
+    private Thread watchThread;
 }
