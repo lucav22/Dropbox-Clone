@@ -257,4 +257,31 @@ public class FileSyncClientGUI extends JFrame {
             }
         });
     }
+
+    private void pollForModifications() {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                Thread.sleep(1000);
+                
+                Map<String, Long> fileMapCopy = new HashMap<>(fileModificationTimes);
+                
+                for (Map.Entry<String, Long> entry : fileMapCopy.entrySet()) {
+                    String filePath = entry.getKey();
+                    long lastModifiedTime = entry.getValue();
+                    
+                    File file = new File(watchDir + File.separator + filePath);
+                    
+                    if (file.exists() && file.isFile()) {
+                        long currentModifiedTime = file.lastModified();
+                        
+                        if (currentModifiedTime > lastModifiedTime) {
+                            fileModificationTimes.put(filePath, currentModifiedTime);
+                            SwingUtilities.invokeLater(() -> handleModifyEvent(file.toPath(), filePath));
+                        }
+                    }
+                }
+            }
+        } catch (InterruptedException e) {
+        }
+    }
 }
