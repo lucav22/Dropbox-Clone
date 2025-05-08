@@ -12,3 +12,12 @@ import java.util.List;
 import java.util.Queue;
 import java.util.LinkedList;
 import static java.nio.file.StandardWatchEventKinds.*;
+
+public class FileSyncClientGUI extends JFrame {
+    private String serverHost = "localhost";
+    private int serverPort = 8000;
+    private String watchDir = "client_files";
+    private Map<String, Long> fileModificationTimes = new HashMap<>();
+
+    
+}
