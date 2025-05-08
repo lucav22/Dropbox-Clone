@@ -34,4 +34,7 @@ public class FileSyncClientGUI extends JFrame {
     private JTable fileTable;
     private DefaultTableModel fileTableModel;
     private JLabel statusLabel;
+
+    private List<String> activityLog = new ArrayList<>();
+    private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
 }
