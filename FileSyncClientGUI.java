@@ -188,4 +188,63 @@ public class FileSyncClientGUI extends JFrame {
             watchDirField.setText(selectedDir.getAbsolutePath());
         }
     }
+
+    private void toggleConnection() {
+        if (connected) {
+            disconnectFromServer();
+        
+            connected = false;
+            connectButton.setText("Connect");
+            serverHostField.setEnabled(true);
+            serverPortField.setEnabled(true);
+            watchDirField.setEnabled(true);
+            browseButton.setEnabled(true);
+            statusLabel.setText("Not connected");
+            return;
+        }
+    
+        serverHost = serverHostField.getText().trim();
+    
+        try {
+            serverPort = Integer.parseInt(serverPortField.getText().trim());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, 
+                    "Invalid port number. Please enter a valid integer.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        watchDir = watchDirField.getText().trim();
+        File watchDirFile = new File(watchDir);
+        if (!watchDirFile.exists() || !watchDirFile.isDirectory()) {
+            int option = JOptionPane.showConfirmDialog(this,
+                    "Watch directory does not exist. Create it?",
+                    "Directory Not Found", JOptionPane.YES_NO_OPTION);
+        
+            if (option != JOptionPane.YES_OPTION) {
+                return;
+            }
+        
+            if (!watchDirFile.mkdirs()) {
+                JOptionPane.showMessageDialog(this,
+                        "Failed to create directory.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+    
+        if (!connectToServer()) {
+            return;
+        }
+    
+        connected = true;
+        connectButton.setText("Disconnect");
+        serverHostField.setEnabled(false);
+        serverPortField.setEnabled(false);
+        watchDirField.setEnabled(false);
+        browseButton.setEnabled(false);
+        statusLabel.setText("Connected to " + serverHost + ":" + serverPort);
+    
+        startWatching();
+    }
 }
