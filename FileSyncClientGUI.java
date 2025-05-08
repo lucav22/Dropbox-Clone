@@ -159,4 +159,22 @@ public class FileSyncClientGUI extends JFrame {
         
         return panel;
     }
+
+    private JPanel createLogPanel() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createTitledBorder("Activity Log"));
+        
+        logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        JScrollPane scrollPane = new JScrollPane(logArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        JButton clearButton = new JButton("Clear Log");
+        clearButton.addActionListener(e -> clearLog());
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(clearButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        return panel;
+    }
 }
