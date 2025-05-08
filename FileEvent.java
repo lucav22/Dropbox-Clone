@@ -1,7 +1,7 @@
 import java.io.Serializable;
 
 public class FileEvent implements Serializable {
-    private static final long serialVersion = 1L;
+    private static final long serialVersionUID = 1L;
 
     public enum EventType {
         CREATE,  // A new file is created

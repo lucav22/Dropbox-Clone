@@ -74,7 +74,7 @@ public class FileSyncClient {
             System.out.println("Performing initial synchronization...");
             
             for (String filePath : fileModificationTimes.keySet()) {
-                File file = new File(WATCH_DIR + File.separator + filePath);
+                File file = new File(DIRECTORY + File.separator + filePath);
                 
                 if (file.exists() && file.isFile()) {
                     byte[] fileData = Files.readAllBytes(file.toPath());
@@ -96,7 +96,7 @@ public class FileSyncClient {
         try {
             WatchService watchService = FileSystems.getDefault().newWatchService();
             
-            Path watchPath = Paths.get(WATCH_DIR);
+            Path watchPath = Paths.get(DIRECTORY);
             registerAll(watchPath, watchService);
             
             System.out.println("Watching directory: " + watchPath.toAbsolutePath());
@@ -124,7 +124,7 @@ public class FileSyncClient {
                     
                     Path fileName = (Path) event.context();
                     Path fullPath = dir.resolve(fileName);
-                    Path relativePath = Paths.get(WATCH_DIR).relativize(fullPath);
+                    Path relativePath = Paths.get(DIRECTORY).relativize(fullPath);
                     String pathString = relativePath.toString().replace("\\", "/");
                     
                     if (Files.isDirectory(fullPath, LinkOption.NOFOLLOW_LINKS)) {
@@ -172,7 +172,7 @@ public class FileSyncClient {
                     String filePath = entry.getKey();
                     long lastModifiedTime = entry.getValue();
                     
-                    File file = new File(WATCH_DIR + File.separator + filePath);
+                    File file = new File(DIRECTORY + File.separator + filePath);
                     
                     if (file.exists() && file.isFile()) {
                         long currentModifiedTime = file.lastModified();
@@ -185,6 +185,7 @@ public class FileSyncClient {
                 }
             }
         } catch (InterruptedException e) {
+            // Thread interrupted
         }
     }
 
