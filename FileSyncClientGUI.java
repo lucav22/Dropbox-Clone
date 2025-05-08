@@ -284,4 +284,43 @@ public class FileSyncClientGUI extends JFrame {
         } catch (InterruptedException e) {
         }
     }
+
+    private void handleCreateEvent(Path fullPath, String relativePath) {
+        try {
+            Thread.sleep(100);
+            
+            addLogEntry("File created: " + relativePath);
+            byte[] fileData = Files.readAllBytes(fullPath);
+            FileEvent event = new FileEvent(FileEvent.EventType.CREATE, relativePath, fileData);
+            sendEventToServer(event);
+            fileModificationTimes.put(relativePath, fullPath.toFile().lastModified());
+            SwingUtilities.invokeLater(this::refreshFileList);
+        } catch (Exception e) {
+            addLogEntry("Error handling create event: " + e.getMessage());
+        }
+    }
+    
+    private void handleModifyEvent(Path fullPath, String relativePath) {
+        try {
+            addLogEntry("File modified: " + relativePath);
+            byte[] fileData = Files.readAllBytes(fullPath);
+            FileEvent event = new FileEvent(FileEvent.EventType.MODIFY, relativePath, fileData);
+            sendEventToServer(event);
+            SwingUtilities.invokeLater(this::refreshFileList);
+        } catch (Exception e) {
+            addLogEntry("Error handling modify event: " + e.getMessage());
+        }
+    }
+    
+    private void handleDeleteEvent(String relativePath) {
+        try {
+            addLogEntry("File deleted: " + relativePath);
+            FileEvent event = new FileEvent(FileEvent.EventType.DELETE, relativePath, null);
+            sendEventToServer(event);
+            fileModificationTimes.remove(relativePath);
+            SwingUtilities.invokeLater(this::refreshFileList);
+        } catch (Exception e) {
+            addLogEntry("Error handling delete event: " + e.getMessage());
+        }
+    }
 }
