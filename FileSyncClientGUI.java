@@ -56,7 +56,6 @@ public class FileSyncClientGUI extends JFrame {
         JPanel connectionPanel = createConnectionPanel();
         mainPanel.add(connectionPanel, BorderLayout.NORTH);
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.7); // 70% to top component
         
         JPanel filePanel = createFilePanel();
         splitPane.setTopComponent(filePanel);
@@ -71,5 +70,61 @@ public class FileSyncClientGUI extends JFrame {
         mainPanel.add(statusLabel, BorderLayout.SOUTH);
         
         setContentPane(mainPanel);
+    }
+
+    private JPanel createConnectionPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Connection Settings"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        panel.add(new JLabel("Server Host:"), gbc);
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        serverHostField = new JTextField(serverHost, 15);
+        panel.add(serverHostField, gbc);
+        
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        panel.add(new JLabel("Server Port:"), gbc);
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        serverPortField = new JTextField(String.valueOf(serverPort), 5);
+        panel.add(serverPortField, gbc);
+        
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        panel.add(new JLabel("Watch Directory:"), gbc);
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        watchDirField = new JTextField(watchDir, 20);
+        panel.add(watchDirField, gbc);
+        
+        // Browse button
+        gbc.gridx++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        browseButton = new JButton("Browse...");
+        panel.add(browseButton, gbc);
+        
+        // Connect button
+        gbc.gridx++;
+        connectButton = new JButton("Connect");
+        panel.add(connectButton, gbc);
+        
+        browseButton.addActionListener(e -> browseForDirectory());
+        connectButton.addActionListener(e -> toggleConnection());
+        
+        return panel;
     }
 }
