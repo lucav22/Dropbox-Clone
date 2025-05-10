@@ -1,21 +1,18 @@
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
+import static java.nio.file.StandardWatchEventKinds.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import static java.nio.file.StandardWatchEventKinds.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.UUID; // Added for client ID generation
-import java.util.Set;   // Added for server manifest
-import java.util.HashSet; // Added for server manifest
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.table.*;
 
 public class FileSyncClientGUI extends JFrame {
     private String serverHost = "localhost";
@@ -28,9 +25,9 @@ public class FileSyncClientGUI extends JFrame {
     private ObjectInputStream input;
     private boolean connected = false;
     private Thread watchThread;
-    private ScheduledExecutorService pollingExecutor; // Added for managing polling
-    private String clientId; // Unique ID for this client GUI instance
-    private final Set<String> serverKnownFilesAfterHandshake = new HashSet<>(); // To store files known by server after handshake
+    private ScheduledExecutorService pollingExecutor;
+    private final String clientId; // Unique ID for this client GUI instance.
+    private final Set<String> serverKnownFilesAfterHandshake = new HashSet<>(); // Stores files known by server after handshake
 
 
     private JTextField serverHostField;
@@ -153,11 +150,11 @@ public class FileSyncClientGUI extends JFrame {
         fileTable = new JTable(fileTableModel);
         fileTable.setFillsViewportHeight(true);
         fileTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        fileTable.getColumnModel().getColumn(0).setPreferredWidth(150); // File name
-        fileTable.getColumnModel().getColumn(1).setPreferredWidth(250); // Path
-        fileTable.getColumnModel().getColumn(2).setPreferredWidth(80);  // Size
-        fileTable.getColumnModel().getColumn(3).setPreferredWidth(150); // Last Modified
-        fileTable.getColumnModel().getColumn(4).setPreferredWidth(100); // Status
+        fileTable.getColumnModel().getColumn(0).setPreferredWidth(150);
+        fileTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+        fileTable.getColumnModel().getColumn(2).setPreferredWidth(80);
+        fileTable.getColumnModel().getColumn(3).setPreferredWidth(150);
+        fileTable.getColumnModel().getColumn(4).setPreferredWidth(100);
         JScrollPane scrollPane = new JScrollPane(fileTable);
         panel.add(scrollPane, BorderLayout.CENTER);
         
@@ -168,7 +165,7 @@ public class FileSyncClientGUI extends JFrame {
         refreshButton.addActionListener(e -> refreshFileList());
         toolBar.add(refreshButton);
         
-        toolBar.addSeparator(); // Optional: adds a visual separator
+        toolBar.addSeparator();
 
         JButton addFileButton = new JButton("Add File...");
         addFileButton.addActionListener(e -> handleAddFileButton());
@@ -234,7 +231,6 @@ public class FileSyncClientGUI extends JFrame {
                 Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
                 addLogEntry("Copied file to watch directory: " + selectedFile.getName());
                 // The WatchService should pick up this new file automatically.
-                // refreshFileList(); // Optionally, refresh immediately, though WatchService should trigger it.
             } catch (IOException e) {
                 addLogEntry("Error copying file '" + selectedFile.getName() + "' to watch directory: " + e.getMessage());
                 JOptionPane.showMessageDialog(this,
@@ -338,8 +334,6 @@ public class FileSyncClientGUI extends JFrame {
             addLogEntry("Client [GUI:" + clientId.substring(0,8) + "]: Successfully connected and handshake complete with server " + this.serverHost + ":" + this.serverPort);
             statusLabel.setText("Connected to " + this.serverHost + ":" + this.serverPort);
             
-            // Reset SO_TIMEOUT to 0 for indefinite blocking for normal operations, or keep a longer one if preferred
-            // socket.setSoTimeout(0); 
 
             initializeFileMap(); // Re-scan local files
             refreshFileList();   // Update GUI table
@@ -436,43 +430,60 @@ public class FileSyncClientGUI extends JFrame {
     }
     
     private void initializeFileMap() {
-        // This method will now just ensure the map is ready.
-        // The actual scanning and table update is handled by refreshFileList.
+        // This method ensures the map is ready. refreshFileList populates it.
         synchronized (fileModificationTimes) {
             fileModificationTimes.clear();
         }
-        // Initial scan and table population will be done by the first call to refreshFileList
     }
 
-    private void scanDirectoryForFiles(File directory, String parentPath) {
+    // Populates rowDataList and currentFileModTimes based on scan.
+    private void scanDirectoryForFiles(
+            File directory, 
+            String parentPath, 
+            List<Object[]> rowDataList, 
+            Map<String, Long> collectedFileModTimes,
+            Set<String> currentServerKnownFiles) {
         File[] files = directory.listFiles();
         if (files == null) return;
 
         for (File file : files) {
-            String relativePath = parentPath.isEmpty() ? file.getName() : parentPath + File.separator + file.getName();
+            String relativePathWithSystemSeparator = parentPath.isEmpty() ? file.getName() : parentPath + File.separator + file.getName();
+            String normalizedRelativePath = relativePathWithSystemSeparator.replace(File.separatorChar, '/');
+
             if (file.isDirectory()) {
-                scanDirectoryForFiles(file, relativePath);
+                scanDirectoryForFiles(file, relativePathWithSystemSeparator, rowDataList, collectedFileModTimes, currentServerKnownFiles);
             } else {
-                // Only update the map, do not touch fileTableModel here
-                synchronized (fileModificationTimes) {
-                    fileModificationTimes.put(relativePath.replace(File.separatorChar, '/'), file.lastModified());
+                long lastModified = file.lastModified();
+                collectedFileModTimes.put(normalizedRelativePath, lastModified);
+
+                String status;
+                if (currentServerKnownFiles.contains(normalizedRelativePath)) {
+                    status = "Synchronized";
+                } else {
+                    status = "Local Only";
                 }
+                
+                rowDataList.add(new Object[]{
+                        file.getName(),
+                        normalizedRelativePath,
+                        file.length() + " B",
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(lastModified)),
+                        status
+                });
             }
         }
     }
 
 
     private void pollForModificationsRunnable() { // Renamed and modified for ScheduledExecutorService
-        // This method is now run by the ScheduledExecutorService
-        // No need for an outer loop or Thread.sleep(1000) here
-        // No need to catch InterruptedException here as the executor handles it
         
-        // Create a copy of the keys to avoid ConcurrentModificationException if an event modifies the map
-        // though with single-threaded polling and SwingUtilities.invokeLater for modifications, it might be less of an issue.
-        Set<String> filePathsSnapshot = new HashSet<>(fileModificationTimes.keySet());
+        Map<String, Long> currentFileModificationTimesSnapshot;
+        synchronized (fileModificationTimes) {
+            currentFileModificationTimesSnapshot = new HashMap<>(fileModificationTimes);
+        }
 
-        for (String filePathKey : filePathsSnapshot) { // filePathKey is normalized with '/'
-            Long lastModifiedTime = fileModificationTimes.get(filePathKey);
+        for (String filePathKey : currentFileModificationTimesSnapshot.keySet()) { // filePathKey is normalized with '/'
+            Long lastModifiedTime = currentFileModificationTimesSnapshot.get(filePathKey);
             if (lastModifiedTime == null) continue; // Should not happen if snapshot is from keys
 
             // Construct file path using system-dependent separator for File object
@@ -487,13 +498,12 @@ public class FileSyncClientGUI extends JFrame {
                     SwingUtilities.invokeLater(() -> handleModifyEvent(file.toPath(), finalFilePathKey));
                 }
             } else {
-                // File might have been deleted, WatchService should handle this with ENTRY_DELETE
-                // Or, if it's a directory, this polling logic isn't meant for it.
             }
         }
     }
 
     private void handleCreateEvent(Path fullPath, String relativePath) {
+        // relativePath is already normalized with '/'
         byte[] fileData = null;
         int maxRetries = 5; // Increased max retries
         long initialDelayMs = 100; // Initial delay
@@ -503,48 +513,44 @@ public class FileSyncClientGUI extends JFrame {
             try {
                 fileData = Files.readAllBytes(fullPath);
                 addLogEntry("Successfully read file " + relativePath + " (create event) on attempt " + attempt);
-                break; // Success
+                break; // Exit loop if read is successful
             } catch (IOException e) {
-                addLogEntry("Attempt " + attempt + "/" + maxRetries + " to read file " + relativePath +
-                            " (create event) failed: " + e.getMessage());
-                if (attempt < maxRetries) {
-                    try {
-                        Thread.sleep(currentDelayMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        addLogEntry("File read retry for " + relativePath + " interrupted. Aborting create event.");
-                        return;
-                    }
+                addLogEntry("Attempt " + attempt + "/" + maxRetries + " to read file " + relativePath + " (create event) failed: " + e.getMessage());
+                if (attempt == maxRetries) {
+                    addLogEntry("Failed to read file " + relativePath + " after " + maxRetries + " attempts. Giving up on create event.");
+                    return; // Give up if all retries fail
+                }
+                try {
+                    Thread.sleep(currentDelayMs);
                     currentDelayMs *= 2; // Exponential backoff
-                } else {
-                    addLogEntry("Failed to read file " + relativePath + " (create event) after " +
-                                maxRetries + " attempts. Error: " + e.getMessage());
-                    // Optionally, update UI or take other actions for persistent failure
-                    return; // Give up after max retries
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    addLogEntry("File read retry delay interrupted for " + relativePath);
+                    return;
                 }
             }
         }
 
-        if (fileData == null) {
-            addLogEntry("Could not read file data for create event after " + maxRetries + " retries: " + relativePath + ". Event not sent.");
-            return;
-        }
-
-        try {
-            addLogEntry("File created: " + relativePath + ". Preparing to send event.");
+        if (fileData != null) {
             FileEvent event = new FileEvent(FileEvent.EventType.CREATE, relativePath, fileData);
-            sendEventToServer(event); // Send event only after successful read
-            // Update modification time only after successful send
-            fileModificationTimes.put(relativePath, fullPath.toFile().lastModified());
-            SwingUtilities.invokeLater(this::refreshFileList);
-            addLogEntry("Create event for " + relativePath + " sent and processed successfully.");
-        } catch (Exception e) { // Catch any other unexpected errors from sending or map update
-            addLogEntry("Unexpected error after reading file, during create event processing for: " +
-                        relativePath + " - " + e.getMessage());
+            addLogEntry("File created: " + relativePath + ". Preparing to send event.");
+            sendEventToServer(event); // Optionally, handle reconnection or queueing logic here
+            // If sendEventToServer is successful, update serverKnownFilesAfterHandshake
+            synchronized (serverKnownFilesAfterHandshake) {
+                serverKnownFilesAfterHandshake.add(relativePath);
+            }
+            addLogEntry("Event sent successfully: CREATE for " + relativePath);
         }
+        refreshFileList(); // Refresh the list to show the new file or updated status
     }
 
     private void handleModifyEvent(Path fullPath, String relativePath) {
+        // relativePath is already normalized with '/'
+        if (!Files.exists(fullPath)) {
+            addLogEntry("File no longer exists during modify check: " + relativePath);
+            return; // File might have been deleted, no action needed
+        }
+
         byte[] fileData = null;
         int maxRetries = 5; // Increased max retries
         long initialDelayMs = 100; // Initial delay
@@ -589,38 +595,42 @@ public class FileSyncClientGUI extends JFrame {
         // This is a simple check; more sophisticated checks might involve checksums if necessary.
         if (fullPath.toFile().lastModified() > lastKnownModTime) {
             addLogEntry("File " + relativePath + " was modified again during read attempts. Re-queueing modify event.");
-            // Potentially re-trigger or re-queue the event handling for this file.
-            // For simplicity here, we'll just log and proceed, but in a real-world scenario,
-            // you might want to re-initiate the handleModifyEvent or add it to a queue.
-            // For now, we will proceed with the data we read, but log this occurrence.
         }
 
 
         try {
             addLogEntry("File modified: " + relativePath + ". Preparing to send event.");
             FileEvent event = new FileEvent(FileEvent.EventType.MODIFY, relativePath, fileData);
-            sendEventToServer(event); // Send event only after successful read
-            // Update modification time with the time captured *before* the read attempts,
-            // or with the latest if you decide to re-read.
-            fileModificationTimes.put(relativePath, lastKnownModTime); // Using the time from before read attempts
-            SwingUtilities.invokeLater(this::refreshFileList);
-            addLogEntry("Modify event for " + relativePath + " sent and processed successfully.");
-        } catch (Exception e) { // Catch any other unexpected errors
-            addLogEntry("Unexpected error after reading file, during modify event processing for: " +
-                        relativePath + " - " + e.getMessage());
+            // Send event only after successful read
+            if (connected) { // Only send if connected
+                sendEventToServer(event);
+            }
+            synchronized (fileModificationTimes) {
+                fileModificationTimes.put(relativePath, Files.getLastModifiedTime(fullPath).toMillis());
+            }
+            // Update GUI
+            SwingUtilities.invokeLater(this::refreshFileList); // Refresh to show updated status/timestamp
+
+        } catch (IOException e) {
+            addLogEntry("Error sending modify event for file " + relativePath + ": " + e.getMessage());
         }
     }
     
     private void handleDeleteEvent(String relativePath) {
+        // relativePath is already normalized with '/'
+        FileEvent event = new FileEvent(FileEvent.EventType.DELETE, relativePath, null);
+        addLogEntry("File deleted: " + relativePath + ". Preparing to send event.");
         try {
-            addLogEntry("File deleted: " + relativePath);
-            FileEvent event = new FileEvent(FileEvent.EventType.DELETE, relativePath, null);
             sendEventToServer(event);
-            fileModificationTimes.remove(relativePath);
-            SwingUtilities.invokeLater(this::refreshFileList);
-        } catch (Exception e) { // Catch any other unexpected errors from sendEventToServer or map removal
-            addLogEntry("Unexpected error handling delete event for file: " + relativePath + " - " + e.getMessage());
+            // If sendEventToServer is successful, update serverKnownFilesAfterHandshake
+            synchronized (serverKnownFilesAfterHandshake) {
+                serverKnownFilesAfterHandshake.remove(relativePath);
+            }
+            addLogEntry("Event sent successfully: DELETE for " + relativePath);
+        } catch (Exception e) { // Catching general Exception to log any unexpected errors during the process
+            addLogEntry("Error processing DELETE event for " + relativePath + ": " + e.getMessage());
         }
+        refreshFileList(); // Refresh the list to reflect the deletion
     }
 
     private synchronized void sendEventToServer(FileEvent event) {
@@ -634,23 +644,27 @@ public class FileSyncClientGUI extends JFrame {
             output.writeObject(event);
             output.flush();
             addLogEntry("Event sent successfully: " + event.getEventType() + " for " + event.getRelativePath());
-        } catch (IOException e) {
-            addLogEntry("IOException sending event to server: " + e.getMessage());
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            addLogEntry("Stack trace for IOException: " + sw.toString().substring(0, Math.min(sw.toString().length(), 1000))); // Log first 1000 chars
-            tryReconnect(); // Attempt to reconnect on send failure
         } catch (ClassCastException cce) {
             addLogEntry("ClassCastException sending event to server: " + cce.getMessage());
             StringWriter sw = new StringWriter();
             cce.printStackTrace(new PrintWriter(sw));
             addLogEntry("Stack trace for ClassCastException: " + sw.toString().substring(0, Math.min(sw.toString().length(), 1000)));
             tryReconnect();
-        } catch (Exception e) {
+        } catch (IOException ioe) { // Specific catch for IOException
+            addLogEntry("IOException sending event to server: " + ioe.getMessage());
+            StringWriter sw = new StringWriter();
+            ioe.printStackTrace(new PrintWriter(sw));
+            String stackTrace = sw.toString();
+            String limitedStackTrace = stackTrace.substring(0, Math.min(stackTrace.length(), 1000));
+            addLogEntry("Stack trace for IOException: " + limitedStackTrace);
+            tryReconnect();
+        } catch (Exception e) { // Catch other exceptions
             addLogEntry("Unexpected error sending event to server: " + e.getClass().getName() + " - " + e.getMessage());
             StringWriter sw = new StringWriter();
             e.printStackTrace(new PrintWriter(sw));
-            addLogEntry("Stack trace for Unexpected error: " + sw.toString().substring(0, Math.min(sw.toString().length(), 1000)));
+            String stackTrace = sw.toString();
+            String limitedStackTrace = stackTrace.substring(0, Math.min(stackTrace.length(), 1000));
+            addLogEntry("Stack trace for Unexpected error: " + limitedStackTrace);
             tryReconnect();
         }
     }
@@ -683,8 +697,6 @@ public class FileSyncClientGUI extends JFrame {
             logArea.append(logMessage + "\n");
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
-        // Refresh file list after a relevant action is logged
-        refreshFileList();
     }
 
     private void clearLog() {
@@ -704,75 +716,53 @@ public class FileSyncClientGUI extends JFrame {
     }
 
     private void disconnectFromServer() {
-        addLogEntry("Client [GUI:" + (clientId != null ? clientId.substring(0,8) : "N/A") + "]: Disconnecting from server...");
-        connected = false; // Set connected to false immediately
+        addLogEntry("Client [GUI:" + clientId.substring(0,8) + "]: Disconnecting from server...");
+        connected = false;
+        statusLabel.setText("Not connected");
 
+        if (watchThread != null && watchThread.isAlive()) {
+            watchThread.interrupt();
+            try {
+                watchThread.join(1000); // Wait for watchThread to terminate
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                addLogEntry("Interrupted while waiting for watch thread to terminate.");
+            }
+        }
         if (pollingExecutor != null && !pollingExecutor.isShutdown()) {
-            addLogEntry("Shutting down polling executor...");
-            pollingExecutor.shutdownNow();
+            pollingExecutor.shutdownNow(); // Attempt to stop all actively executing tasks
             try {
                 if (!pollingExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
                     addLogEntry("Polling executor did not terminate in time.");
                 }
             } catch (InterruptedException e) {
-                addLogEntry("Interrupted while waiting for polling executor to terminate: " + e.getMessage());
+                pollingExecutor.shutdownNow();
                 Thread.currentThread().interrupt();
+                addLogEntry("Interrupted while waiting for polling executor to terminate.");
             }
-        }
-        pollingExecutor = null;
-
-        if (watchThread != null && watchThread.isAlive()) {
-            addLogEntry("Interrupting watch thread...");
-            watchThread.interrupt();
-            try {
-                watchThread.join(1000); // Wait for a short period
-                if (watchThread.isAlive()) {
-                    addLogEntry("Watch thread did not terminate in time.");
-                }
-            } catch (InterruptedException e) {
-                addLogEntry("Interrupted while waiting for watch thread to join: " + e.getMessage());
-                Thread.currentThread().interrupt();
-            }
-        }
-        watchThread = null;
-
-        // Close streams and socket, handling potential nulls and exceptions
-        try {
-            if (output != null) {
-                output.close();
-                addLogEntry("Output stream closed.");
-            }
-        } catch (IOException e) {
-            addLogEntry("Error closing output stream: " + e.getMessage());
-        } finally {
-            output = null;
         }
 
         try {
-            if (input != null) {
-                input.close();
-                addLogEntry("Input stream closed.");
-            }
-        } catch (IOException e) {
-            addLogEntry("Error closing input stream: " + e.getMessage());
-        } finally {
-            input = null;
+            if (output != null) output.close();
+            if (input != null) input.close();
+            if (socket != null) socket.close();
+        } catch (IOException e) { // Changed from generic Exception to IOException
+            addLogEntry("Client [GUI:" + clientId.substring(0,8) + "]: Error closing resources: " + e.getMessage());
         }
-
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-                addLogEntry("Socket closed.");
-            }
-        } catch (IOException e) {
-            addLogEntry("Error closing socket: " + e.getMessage());
-        } finally {
-            socket = null;
+        output = null;
+        input = null;
+        socket = null;
+        synchronized (serverKnownFilesAfterHandshake) {
+            serverKnownFilesAfterHandshake.clear();
         }
-        
-        statusLabel.setText("Not connected");
-        // connectButton text and field enablement are handled in toggleConnection
-        addLogEntry("Client [GUI:" + (clientId != null ? clientId.substring(0,8) : "N/A") + "]: Disconnected.");
+        // Clear the table model on disconnect
+        if (SwingUtilities.isEventDispatchThread()) {
+            fileTableModel.setRowCount(0);
+        } else {
+            SwingUtilities.invokeLater(() -> fileTableModel.setRowCount(0));
+        }
+        addLogEntry("Client [GUI:" + clientId.substring(0,8) + "]: Disconnected.");
+        refreshFileList(); // Refresh list to show all as "Local Only" or clear if dir is invalid
     }
 
     private void registerAll(final Path start, final WatchService watcher) throws IOException {
@@ -781,49 +771,101 @@ public class FileSyncClientGUI extends JFrame {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                 dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+                addLogEntry("Registered directory for watching: " + dir + " with events: CREATE, DELETE, MODIFY");
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                // Optionally, log files being visited if needed for debugging registration scope
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+                addLogEntry("Failed to access path during watch registration: " + file + (exc != null ? " - " + exc.getMessage() : ""));
+                // Log the stack trace for the exception if it's not null and more detail is needed.
+                return FileVisitResult.CONTINUE; // Continue trying to register other paths
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                if (exc != null) {
+                    addLogEntry("Error after visiting directory during watch registration: " + dir + " - " + exc.getMessage());
+                     // Log the stack trace for the exception if it's not null and more detail is needed.
+                }
                 return FileVisitResult.CONTINUE;
             }
         });
+        addLogEntry("Completed walkFileTree for watch registration starting at: " + start);
     }
 
     private void refreshFileList() {
-        // 1. Clear and repopulate the internal map
-        String currentWatchDir = watchDirField.getText();
-        File dir = new File(currentWatchDir);
+        if (SwingUtilities.isEventDispatchThread()) {
+            executeRefreshFileList();
+        } else {
+            SwingUtilities.invokeLater(this::executeRefreshFileList);
+        }
+    }
 
-        synchronized (fileModificationTimes) {
-            fileModificationTimes.clear();
-            if (dir.exists() && dir.isDirectory()) {
-                scanDirectoryForFiles(dir, ""); // Populates fileModificationTimes
+    private void executeRefreshFileList() {
+        if (!connected && fileTableModel.getRowCount() == 0) {
+            return;
+        }
+        if (!connected && fileTableModel.getRowCount() > 0) {
+            // If disconnected but table still has items, clear them.
+            fileTableModel.setRowCount(0);
+            synchronized(fileModificationTimes) {
+                fileModificationTimes.clear();
             }
+            return;
         }
 
-        // 2. Clear the table
-        SwingUtilities.invokeLater(() -> {
-            fileTableModel.setRowCount(0);
+        // If connected, proceed with scanning and updating.
+        new SwingWorker<List<Object[]>, Void>() {
+            private final Map<String, Long> scannedModificationTimes = new HashMap<>();
+            private Set<String> currentServerKnownFilesSnapshot;
 
-            // 3. Repopulate the table from the map
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            List<Map.Entry<String, Long>> sortedEntries;
-            synchronized (fileModificationTimes) {
-                // Sort by path for consistent display
-                sortedEntries = new ArrayList<>(fileModificationTimes.entrySet());
-                sortedEntries.sort(Map.Entry.comparingByKey());
+            @Override
+            protected List<Object[]> doInBackground() throws Exception {
+                List<Object[]> rowDataList = new ArrayList<>();
+                File dir = new File(watchDir);
+
+                // Take a snapshot of serverKnownFilesAfterHandshake to use for this scan
+                synchronized (serverKnownFilesAfterHandshake) {
+                    currentServerKnownFilesSnapshot = new HashSet<>(serverKnownFilesAfterHandshake);
+                }
+
+                if (dir.exists() && dir.isDirectory()) {
+                    scanDirectoryForFiles(dir, "", rowDataList, scannedModificationTimes, currentServerKnownFilesSnapshot);
+                }
+                return rowDataList;
             }
 
-            for (Map.Entry<String, Long> entry : sortedEntries) {
-                String relativePath = entry.getKey();
-                File file = new File(currentWatchDir, relativePath.replace('/', File.separatorChar));
-                // Check if file still exists before adding to table, as map might be slightly ahead of deletion processing
-                if (file.exists()) {
-                    fileTableModel.addRow(new Object[]{
-                            file.getName(),
-                            file.getAbsolutePath(),
-                            file.length(),
-                            sdf.format(new Date(file.lastModified())),
-                    });
+            @Override
+            protected void done() {
+                try {
+                    List<Object[]> rowDataList = get(); // Get the result from doInBackground
+                    // Clear existing rows
+                    fileTableModel.setRowCount(0);
+                    // Add new rows
+                    for (Object[] row : rowDataList) {
+                        fileTableModel.addRow(row);
+                    }
+                    // Update the main fileModificationTimes map on the EDT
+                    synchronized (fileModificationTimes) {
+                        fileModificationTimes.clear();
+                        fileModificationTimes.putAll(scannedModificationTimes);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    addLogEntry("File list refresh interrupted: " + e.getMessage());
+                } catch (java.util.concurrent.ExecutionException e) {
+                    addLogEntry("Error executing file list refresh: " + e.getCause().getMessage());
+                } catch (Exception e) { // Catch any other unexpected exceptions during get() or UI update
+                    addLogEntry("Unexpected error refreshing file list: " + e.getClass().getName() + " - " + e.getMessage());
                 }
             }
-        });
+        }.execute();
     }
 }

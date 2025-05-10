@@ -8,35 +8,35 @@ import java.net.Socket;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
-import java.util.HashSet; // Keep: Used in initialSync
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set; // Keep: Used in initialSync
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.UUID; // Added for client ID generation
+import java.util.UUID;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
 public class FileSyncClient {
-    private static final String SERVER_HOST = "localhost"; // Make configurable if needed
-    private static final int SERVER_PORT = 8000;           // Make configurable if needed
+    private static final String SERVER_HOST = "localhost";
+    private static final int SERVER_PORT = 8000;
     private static final String DIRECTORY = "client_files";    
-    private final Map<String, Long> fileModificationTimes = new HashMap<>(); // Made final
+    private final Map<String, Long> fileModificationTimes = new HashMap<>();
     private Socket socket;
     private ObjectInputStream input;
     private ObjectOutputStream output;
     private final BlockingQueue<FileEvent> eventSendQueue = new LinkedBlockingQueue<>();
     private Thread eventSenderThread;
-    private volatile boolean running = true; // For controlling loops
-    private final Set<String> serverKnownFilesAfterHandshake = new HashSet<>(); // Ensured final
-    private final String clientId; // Unique ID for this client instance, now final
+    private volatile boolean running = true;
+    private final Set<String> serverKnownFilesAfterHandshake = new HashSet<>();
+    private final String clientId; // Unique ID for this client instance
     private volatile boolean initialHandshakeComplete = false; // Controls event sending
 
     public FileSyncClient() {
-        this.clientId = UUID.randomUUID().toString(); // Initialize unique client ID
-        System.out.println("FileSyncClient initialized with ID: " + this.clientId); // Log client ID
+        this.clientId = UUID.randomUUID().toString();
+        System.out.println("FileSyncClient initialized with ID: " + this.clientId);
         File dirToWatch = new File(DIRECTORY);
         if (!dirToWatch.exists()) {
             if (dirToWatch.mkdirs()) {
@@ -46,7 +46,7 @@ public class FileSyncClient {
             }
         }
         initializeFileMap();
-        startEventSenderThread(); // Start sender thread during construction
+        startEventSenderThread();
     }
 
     private void initializeFileMap() {
@@ -96,18 +96,14 @@ public class FileSyncClient {
         try {
             socket = new Socket();
             // Set timeouts for socket operations
-            // Connect with a timeout (e.g., 5 seconds)
-            socket.connect(new InetSocketAddress(SERVER_HOST, SERVER_PORT), 5000);
-            // Set a read timeout for subsequent operations (e.g., 10 seconds)
-            socket.setSoTimeout(10000);
+            socket.connect(new InetSocketAddress(SERVER_HOST, SERVER_PORT), 5000); // Connect with a timeout
+            socket.setSoTimeout(10000); // Set a read timeout
 
             System.out.println("Client [" + this.clientId + "]: Socket connected to " + SERVER_HOST + ":" + SERVER_PORT);
 
             // Initialize streams: OOS first, then OIS.
-            // It's crucial to flush OOS after creation if the other side creates OIS after its OOS.
             output = new ObjectOutputStream(socket.getOutputStream());
             output.flush(); // Send the stream header
-            System.out.println("Client [" + this.clientId + "]: ObjectOutputStream created and flushed.");
 
             input = new ObjectInputStream(socket.getInputStream());
             System.out.println("Client [" + this.clientId + "]: ObjectInputStream created.");
@@ -356,9 +352,6 @@ public class FileSyncClient {
                         }
                     } else {
                         // File doesn't exist. Deletion is primarily handled by WatchService.
-                        // If it was in fileModificationTimes, WatchService should have (or will)
-                        // trigger handleDeleteEvent which removes it.
-                        // If somehow missed, it will be pruned on next full scan/resync.
                     }
                 }
             }
@@ -371,7 +364,7 @@ public class FileSyncClient {
 
     private void handleCreateEvent(Path fullPath, String relativePath) {
         final int MAX_RETRIES = 5;
-        final long RETRY_DELAY_MS = 100; // Reduced base delay for quicker initial retries
+        final long RETRY_DELAY_MS = 100;
 
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
@@ -459,8 +452,7 @@ public class FileSyncClient {
             return;
         }
 
-        // If handshake is not complete, event should have been re-queued by runEventSenderLoop.
-        // However, as a safeguard, especially if called from elsewhere or if state changes rapidly:
+        // Safeguard: if handshake is not complete, event should have been re-queued by runEventSenderLoop.
         if (!initialHandshakeComplete) {
             System.err.println("PerformActualSend (Client ID: [" + this.clientId + "]): Safeguard: Handshake not complete. Re-queueing event: " + event.getRelativePath());
             try {
@@ -516,7 +508,6 @@ public class FileSyncClient {
         if (!running) return false;
         System.out.println("Client ID: [" + this.clientId + "]: Closing existing client resources before attempting reconnect...");
         closeClientResources(); // This will set initialHandshakeComplete = false
-        // initialHandshakeComplete = false; // Explicitly set again for clarity, though closeClientResources does it
 
         try {
             System.out.println("Client ID: [" + this.clientId + "]: Attempting to reconnect to server...");
@@ -539,7 +530,6 @@ public class FileSyncClient {
                 System.out.println("Client ID: [" + this.clientId + "]: Reconnect: OOS FLUSHED after writing client ID.");
             } catch (IOException e) {
                 System.err.println("Client ID: [" + this.clientId + "]: Reconnect: CRITICAL IOException during client ID send/flush: " + e.getMessage());
-                e.printStackTrace(); // Print stack trace for this specific error
                 throw e; // Re-throw to be caught by the method's main try-catch
             }
 
@@ -548,6 +538,7 @@ public class FileSyncClient {
             System.out.println("Client ID: [" + this.clientId + "]: Reconnect: ObjectInputStream created.");
 
             System.out.println("Client ID: [" + this.clientId + "]: Reconnect: Streams established. Attempting to read initial messages from server (server manifest)...");
+
             boolean initialHandshakeCompletedThisAttempt = false;
             serverKnownFilesAfterHandshake.clear();
 
@@ -670,9 +661,7 @@ public class FileSyncClient {
     public synchronized void closeClientResources() {
         System.out.println("Client ID: [" + this.clientId + "]: Closing client resources...");
         this.initialHandshakeComplete = false; // Critical: reset handshake flag
-        running = false; // Signal all loops to stop, though for connect/reconnect this might be too broad if only closing streams
-                       // For now, this matches existing logic for a full stop.
-                       // If only streams are meant to be closed for a reconnect, 'running' should be handled differently.
+        running = false;
 
         if (eventSenderThread != null && eventSenderThread.isAlive()) {
             eventSenderThread.interrupt();
@@ -727,8 +716,7 @@ public class FileSyncClient {
         if (eventSenderThread != null) {
             eventSenderThread.interrupt(); // Interrupt the sender thread (it handles InterruptedException)
         }
-        // WatchService loop will break on interrupt or if watchService is closed (implicitly by 'running' flag or explicitly)
-        // Polling thread will break due to 'running' flag and InterruptedException
+        // WatchService and Polling threads will break due to 'running' flag or InterruptedException
 
         // Give threads a moment to shut down
         try {
@@ -747,7 +735,7 @@ public class FileSyncClient {
         System.out.println("FileSyncClient shutdown complete.");
     }
 
-    // For compatibility if GUI or other parts call client.close()
+    // For compatibility
     public void close() {
         shutdown();
     }
@@ -756,37 +744,19 @@ public class FileSyncClient {
     public static void main(String[] args) {
         FileSyncClient client = new FileSyncClient();
         try {
-            // Attempt to connect to the server
-            client.connect(); 
-            
-            // Start watching for file changes in a new thread
-            // The startWatching method itself contains the main watch loop
+            // Assuming the following calls were intended based on typical client startup
+            // and previous "cannot find symbol" errors when 'client' was removed.
+            client.connect();
             Thread watchThread = new Thread(client::startWatching);
-            watchThread.setName("FileSyncClient-WatchThread");
-            // watchThread.setDaemon(false); // If true, JVM exits if only daemon threads are running
+            watchThread.setDaemon(true);
             watchThread.start();
 
-            System.out.println("FileSyncClient started. Watching directory: " + DIRECTORY);
-            System.out.println("Press Ctrl+C in the console to initiate shutdown.");
-
-            // Add a shutdown hook for graceful termination on Ctrl+C
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("Shutdown hook triggered. Initiating client shutdown...");
-                client.shutdown();
-            }));
-
-            // Keep the main thread alive if watchThread is a daemon,
-            // or join watchThread if it's not a daemon to wait for it.
-            // If watchThread is not a daemon, this main thread can exit,
-            // and watchThread will keep JVM alive.
-            // For this example, if watchThread is not daemon, main can exit.
-            // If watchThread IS daemon, main needs to stay alive or client stops.
-            // Let's assume watchThread is not a daemon for this test setup,
-            // so it keeps the client running.
-
         } catch (IOException e) {
-            System.err.println("Failed to start or connect FileSyncClient: " + e.getMessage());
-            client.shutdown(); // Ensure resources are cleaned up on startup failure
+            System.err.println("Client startup failed: " + e.getMessage());
+            // Ensure client resources are cleaned up if initialization failed.
+            if (client != null) {
+                client.shutdown();
+            }
         }
     }
 }

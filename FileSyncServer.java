@@ -10,7 +10,6 @@ public class FileSyncServer {
     private final int port;
     private ServerSocket serverSocket;
     private final ExecutorService clientHandlerPool;
-    // private final Set<ClientHandler> clientHandlers = ConcurrentHashMap.newKeySet(); // Replaced by clientHandlersById
     private final Map<String, ClientHandler> clientHandlersById = new ConcurrentHashMap<>();
     private FileSyncServerGUI gui; // Optional GUI
 
